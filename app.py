@@ -1,43 +1,42 @@
-import logging
-import os
 import time
-from logging.handlers import RotatingFileHandler
 
 import requests
-from flask import Flask, jsonify
+from flask import Flask
 
-from celery_config import make_celery
+from config import make_celery, set_logger
 
 app = Flask(__name__)
 
 celery = make_celery(app)
 
-if not os.path.exists('logs'):
-    os.mkdir('logs')
+set_logger(app)
 
-file_handler = RotatingFileHandler('logs/app.log', maxBytes=10240, backupCount=10)
-file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
-file_handler.setLevel(logging.INFO)
-
-app.logger.addHandler(file_handler)
-app.logger.setLevel(logging.INFO)
-
-app.logger.info('Calculate Service Started')
+app.logger.info('Celery distributed task manager service starting..')
 
 
 @celery.task(name="multiply")
 def multiply(x, y):
-    result = x * y + 0.1
+    app.logger.info('Received x: {}, y: {} for the calculation'.format(x, y))
+
+    try:
+        result = x * y
+    except TypeError:
+        app.logger.error('<TypeError> error occurred when {} * {}'.format(x, y))
+        return
+    except Exception:
+        app.logger.error('An error occurred when {} * {}'.format(x, y))
+        return
+
+    app.logger.info('Result of {} * {} = {}. Sleep for 3 second...'.format(x, y, result))
+
     time.sleep(3)
 
     url = 'http://127.0.0.1:5000/callback'
-    data = {'result': result}
+    data = {'result': result, 'x': x, 'y': y}
+
+    app.logger.info('Sleep done. Sending result={} to callback.'.format(result))
 
     requests.post(url, json=data)
-
-    print("result:", result)
-
-    return jsonify({'result': result})
 
 
 if __name__ == "__main__":
