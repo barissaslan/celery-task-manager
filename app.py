@@ -1,43 +1,38 @@
+import logging
+import os
 import time
 
 import requests
-from flask import Flask
 
-from config import make_celery, set_logger
+from config import get_logger, make_celery
 
-app = Flask(__name__)
+logger = get_logger()
+celery = make_celery()
 
-celery = make_celery(app)
+CALLBACK_URL = os.environ.get('CALLBACK_URL')
 
-set_logger(app)
-
-app.logger.info('Celery distributed task manager service starting..')
+logging.info('Celery distributed task manager service starting..')
 
 
-@celery.task(name="multiply")
+@celery.task(name="tasks.multiply")
 def multiply(x, y):
-    app.logger.info('Received x: {}, y: {} for the calculation'.format(x, y))
+    logger.info('Received x: {}, y: {} for the calculation'.format(x, y))
 
     try:
         result = x * y
     except TypeError:
-        app.logger.error('<TypeError> error occurred when {} * {}'.format(x, y))
+        logger.error('<TypeError> error occurred when {} * {}'.format(x, y))
         return
     except Exception:
-        app.logger.error('An error occurred when {} * {}'.format(x, y))
+        logger.error('An error occurred when {} * {}'.format(x, y))
         return
 
-    app.logger.info('Result of {} * {} = {}. Sleep for 3 second...'.format(x, y, result))
+    logger.info('Result of {} * {} = {}. Sleep for 3 second...'.format(x, y, result))
 
     time.sleep(3)
 
-    url = 'http://127.0.0.1:5000/callback'
-    data = {'result': result, 'x': x, 'y': y}
+    url = CALLBACK_URL.format(result)
 
-    app.logger.info('Sleep done. Sending result={} to callback.'.format(result))
+    logger.info('Sleep done. Sending result={} to callback.'.format(result))
 
-    requests.post(url, json=data)
-
-
-if __name__ == "__main__":
-    app.run()
+    requests.get(url)
