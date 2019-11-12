@@ -6,6 +6,7 @@ A basic Celery task manager application.
 
 ```bash
 git clone git@github.com:barissaslan/celery-task-manager.git
+cd ./celery-task-manager
 ```
 
 ### Docker Build 
@@ -41,7 +42,7 @@ export CALLBACK_URL='callback url'
 celery -A app.celery worker --without-gossip --without-mingle --without-heartbeat
 ```
 
-### Run Unit Tests
+## Run Unit Tests
 
 ```bash
 python3 tests.py
