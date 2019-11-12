@@ -10,6 +10,7 @@ logger = get_logger()
 celery = make_celery()
 
 CALLBACK_URL = os.environ.get('CALLBACK_URL')
+TYPE_ERROR_MESSAGE = '<TypeError> error occurred when {} * {}'
 
 logging.info('Celery distributed task manager service starting..')
 
@@ -21,11 +22,12 @@ def multiply(x, y):
     try:
         result = x * y
     except TypeError:
-        logger.error('<TypeError> error occurred when {} * {}'.format(x, y))
-        return
-    except Exception:
-        logger.error('An error occurred when {} * {}'.format(x, y))
-        return
+        message = TYPE_ERROR_MESSAGE.format(x, y)
+        logger.error(message)
+        return {'error': message}
+    except Exception as e:
+        logger.error(str(e))
+        return {'error': str(e)}
 
     logger.info('Result of {} * {} = {}. Sleep for 3 second...'.format(x, y, result))
 
@@ -35,4 +37,9 @@ def multiply(x, y):
 
     logger.info('Sleep done. Sending result={} to callback.'.format(result))
 
-    requests.get(url)
+    try:
+        requests.get(url)
+    except requests.exceptions.RequestException as e:
+        logger.error(e)
+
+    return {'result': result}
